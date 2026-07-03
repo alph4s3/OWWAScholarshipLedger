@@ -22,19 +22,29 @@ set_exception_handler(function (Throwable $error): void {
 
 function owwa_connection(): PDO
 {
-    $host = 'localhost';
-    $database = 'owwa_scholarship_ledger';
-    $username = 'root';
-    $password = '';
-    $charset = 'utf8mb4';
+    // Reads Railway MySQL environment variables when deployed;
+    // falls back to local XAMPP defaults when running on localhost.
+    $host     = getenv('MYSQLHOST')     ?: 'localhost';
+    $port     = getenv('MYSQLPORT')     ?: '3306';
+    $database = getenv('MYSQLDATABASE') ?: 'owwa_scholarship_ledger';
+    $username = getenv('MYSQLUSER')     ?: 'root';
+    $password = getenv('MYSQLPASSWORD') ?: '';
+    $charset  = 'utf8mb4';
 
-    $dsn = "mysql:host={$host};charset={$charset}";
+    $dsn = "mysql:host={$host};port={$port};charset={$charset}";
     $pdo = new PDO($dsn, $username, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 
-    $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    // Hosted MySQL providers usually pre-create the database and may not
+    // allow CREATE DATABASE, so tolerate failure and just select the DB.
+    try {
+        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    } catch (Throwable $error) {
+        // Ignore: the database already exists or the user lacks CREATE privileges.
+    }
+
     $pdo->exec("USE `{$database}`");
 
     return $pdo;
