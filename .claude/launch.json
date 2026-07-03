@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Node Static Server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 3000
+    },
+    {
+      "name": "XAMPP Apache (PHP)",
+      "runtimeExecutable": "/Applications/XAMPP/xamppfiles/bin/apachectl",
+      "runtimeArgs": ["start"],
+      "port": 80
+    }
+  ]
+}

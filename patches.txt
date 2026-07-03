@@ -1,0 +1,321 @@
+================================================================
+ACADEMIC STATUS COLUMN — code patches
+================================================================
+
+STEP 1 — Run the SQL migration (migration.sql) in phpMyAdmin first.
+
+================================================================
+PATCH A · crud.php  (add dropdown to set status when creating/editing)
+================================================================
+
+----------------------------------------------------------------
+A1. Add the options list near the top, alongside $lifeStageOptions
+----------------------------------------------------------------
+
+FIND:
+  $lifeStageOptions = ['Student', 'Working', 'Graduated', 'Terminated'];
+
+ADD RIGHT AFTER:
+  $academicStatusOptions = ['Maintained', 'Probation', 'Terminated'];
+
+----------------------------------------------------------------
+A2. Add the column to the schema-detection array
+----------------------------------------------------------------
+
+FIND the $cols = [ ... ]; array and ADD this line inside it:
+
+  'academic_status' => column_exists($pdo, 'scholars_crud', 'academic_status'),
+
+----------------------------------------------------------------
+A3. Capture the POSTed value into $formData
+----------------------------------------------------------------
+
+FIND:
+  'work_mode'      => trim($_POST['work_mode'] ?? 'SB'),
+
+CHANGE TO (add the new field after work_mode):
+  'work_mode'      => trim($_POST['work_mode'] ?? 'SB'),
+  'academic_status'=> trim($_POST['academic_status'] ?? 'Maintained'),
+
+----------------------------------------------------------------
+A4. Validate the new value
+----------------------------------------------------------------
+
+FIND:
+  if ($cols['work_mode'] && !in_array($formData['work_mode'], ['SB','LB'], true)) {
+    $errors[] = 'Select a valid work mode (SB or LB).';
+  }
+
+ADD RIGHT AFTER (still inside the validation block):
+  if (!in_array($formData['academic_status'], $academicStatusOptions, true)) {
+    $errors[] = 'Select a valid academic status.';
+  }
+
+----------------------------------------------------------------
+A5. Save the value to the database
+----------------------------------------------------------------
+
+FIND:
+  if ($cols['work_mode'])    $data['work_mode']    = $formData['work_mode'];
+
+ADD RIGHT AFTER:
+  if ($cols['academic_status']) $data['academic_status'] = $formData['academic_status'];
+
+----------------------------------------------------------------
+A6. Default value when building $d for the form
+----------------------------------------------------------------
+
+FIND:
+  'phone' => '', 'phone_country' => '+63', 'work_mode' => 'SB',
+];
+
+CHANGE TO:
+  'phone' => '', 'phone_country' => '+63', 'work_mode' => 'SB',
+  'academic_status' => 'Maintained',
+];
+
+----------------------------------------------------------------
+A7. Populate from edit row
+----------------------------------------------------------------
+
+FIND:
+  $d['work_mode']      = $editRow['work_mode'] ?? 'SB';
+
+ADD RIGHT AFTER:
+  $d['academic_status'] = $editRow['academic_status'] ?? 'Maintained';
+
+----------------------------------------------------------------
+A8. Add the form field — drop it into Column 2 (Program & Location)
+    right after the existing "Life Stage" field
+----------------------------------------------------------------
+
+ADD this <div class="field"> block inside Column 2, right after Life Stage:
+
+  <div class="field">
+    <label>Academic Status <span class="req">*</span></label>
+    <span class="input-icon">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M8 1l2 4 4 .6-3 3 .8 4.4L8 11l-3.8 2 .8-4.4-3-3 4-.6L8 1z"/>
+      </svg>
+      <select name="academic_status" required>
+        <option value="Maintained"  <?php echo $d['academic_status'] === 'Maintained'  ? 'selected' : ''; ?>>Maintained</option>
+        <option value="Probation"   <?php echo $d['academic_status'] === 'Probation'   ? 'selected' : ''; ?>>Probation</option>
+        <option value="Terminated"  <?php echo $d['academic_status'] === 'Terminated'  ? 'selected' : ''; ?>>Terminated</option>
+      </select>
+    </span>
+  </div>
+
+
+================================================================
+PATCH B · dashboard.php  (show new column + filter by it)
+================================================================
+
+----------------------------------------------------------------
+B1. Add options + filter input
+----------------------------------------------------------------
+
+FIND:
+  $lifeStageOptions = [
+    'Student',
+    'Working',
+    'Graduated',
+    'Terminated',
+  ];
+
+ADD RIGHT AFTER:
+  $academicStatusOptions = ['Maintained', 'Probation', 'Terminated'];
+
+----------------------------------------------------------------
+B2. Read the GET filter
+----------------------------------------------------------------
+
+FIND:
+  $lifeStage = trim($_GET['life_stage'] ?? '');
+
+ADD RIGHT AFTER:
+  $academicStatus = trim($_GET['academic_status'] ?? '');
+
+----------------------------------------------------------------
+B3. Pull the column in the SELECT
+----------------------------------------------------------------
+
+FIND:
+  $sql = "SELECT id, last_name, first_name, middle_initial, birthdate, province, program, phone, work_mode, YEAR(created_at) AS year_applied, life_stage, created_at FROM scholars_crud WHERE 1=1";
+
+CHANGE TO:
+  $sql = "SELECT id, last_name, first_name, middle_initial, birthdate, province, program, phone, work_mode, YEAR(created_at) AS year_applied, life_stage, academic_status, created_at FROM scholars_crud WHERE 1=1";
+
+----------------------------------------------------------------
+B4. Add WHERE clause for filter
+----------------------------------------------------------------
+
+FIND:
+  if (in_array($lifeStage, $lifeStageOptions, true)) {
+    $sql .= " AND life_stage = :life_stage";
+    $params[':life_stage'] = $lifeStage;
+  }
+
+ADD RIGHT AFTER:
+  if (in_array($academicStatus, $academicStatusOptions, true)) {
+    $sql .= " AND academic_status = :academic_status";
+    $params[':academic_status'] = $academicStatus;
+  }
+
+----------------------------------------------------------------
+B5. Surface active-filter chip
+----------------------------------------------------------------
+
+FIND:
+  'Middle Initial' => $middle_initial !== '' ? $middle_initial : null,
+  'Life Stage' => $lifeStage !== '' ? $lifeStage : null,
+
+CHANGE TO:
+  'Middle Initial' => $middle_initial !== '' ? $middle_initial : null,
+  'Life Stage' => $lifeStage !== '' ? $lifeStage : null,
+  'Academic Status' => $academicStatus !== '' ? $academicStatus : null,
+
+----------------------------------------------------------------
+B6. Add the filter dropdown to the form
+----------------------------------------------------------------
+
+Inside <form class="filters" ...>, ADD this <div class="field"> block
+just before the <div class="actions"> block (where the Apply button lives):
+
+  <div class="field">
+    <label>Academic Status</label>
+    <select name="academic_status">
+      <option value="">All Statuses</option>
+      <?php foreach ($academicStatusOptions as $item): ?>
+        <option value="<?php echo owwa_h($item); ?>" <?php echo $academicStatus === $item ? 'selected' : ''; ?>><?php echo owwa_h($item); ?></option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+
+Also update the .filters grid-template-columns to accommodate one more
+column. FIND:
+
+  .filters {
+    grid-template-columns: 1.1fr 1fr 1.1fr 1.1fr .6fr auto;
+
+CHANGE TO:
+
+  .filters {
+    grid-template-columns: 1.1fr 1fr 1fr 1fr .6fr 1fr auto;
+
+----------------------------------------------------------------
+B7. Add the table column
+----------------------------------------------------------------
+
+FIND:
+        <tr>
+          <th>Last Name</th>
+          <th>First Name</th>
+          <th>Middle</th>
+          <th>Province</th>
+          <th>Program</th>
+          <th>Year</th>
+          <th>Status</th>
+        </tr>
+
+CHANGE TO:
+        <tr>
+          <th>Last Name</th>
+          <th>First Name</th>
+          <th>Middle</th>
+          <th>Province</th>
+          <th>Program</th>
+          <th>Year</th>
+          <th>Life Stage</th>
+          <th>Academic</th>
+        </tr>
+
+----------------------------------------------------------------
+B8. Update colspan for the empty-state row
+----------------------------------------------------------------
+
+FIND:
+  <tr><td colspan="7" style="padding:48px 24px;text-align:center">
+
+CHANGE TO:
+  <tr><td colspan="8" style="padding:48px 24px;text-align:center">
+
+----------------------------------------------------------------
+B9. Add the cell + data attribute for each scholar row
+----------------------------------------------------------------
+
+FIND inside $detailPayload:
+  'work_mode' => $row['work_mode'] ?? 'SB',
+
+ADD RIGHT AFTER:
+  'academic_status' => $row['academic_status'] ?? 'Maintained',
+
+FIND the row element's data attributes block, add this line:
+  data-academic-status="<?php echo owwa_h($detailPayload['academic_status']); ?>"
+
+FIND the <td> with Life Stage badge:
+  <td><span class="badge info"><?php echo owwa_h($row['life_stage'] ?: 'Student'); ?></span></td>
+
+CHANGE TO (add a second <td> for academic status with a colored badge):
+  <td><span class="badge info"><?php echo owwa_h($row['life_stage'] ?: 'Student'); ?></span></td>
+  <td><?php
+    $stat = $row['academic_status'] ?: 'Maintained';
+    $badgeClass = $stat === 'Maintained' ? 'ok'
+                : ($stat === 'Probation' ? 'warn' : 'danger');
+    ?>
+    <span class="badge <?php echo $badgeClass; ?>"><?php echo owwa_h($stat); ?></span>
+  </td>
+
+(Make sure your theme.css has .badge.ok / .badge.warn / .badge.danger
+classes. If not, the inline fallback below works.)
+
+----------------------------------------------------------------
+B10. Add the modal field for academic status
+----------------------------------------------------------------
+
+In the .scholar-details grid inside the modal, ADD this <div> next to
+the Life Stage detail card:
+
+  <div class="detail-card"><span class="label">Academic Status</span><span class="value" id="scholarModalAcademic">—</span></div>
+
+In the modal JS, ADD:
+
+  const modalAcademic = document.getElementById('scholarModalAcademic');
+
+  // inside openScholarModal(data):
+  modalAcademic.textContent = data.academicStatus || data.academic_status || '—';
+
+
+================================================================
+PATCH C · report.php  (column + filter)
+================================================================
+
+C1. Add options:
+  $academicStatusOptions = ['Maintained', 'Probation', 'Terminated'];
+
+C2. Read GET filter:
+  $academicStatus = trim($_GET['academic_status'] ?? '');
+
+C3. SELECT now needs academic_status (it's likely already pulled by SELECT *
+    if you used SELECT *; otherwise add it to the column list).
+
+C4. Add WHERE filter:
+  if (in_array($academicStatus, $academicStatusOptions, true)) {
+    $sql .= " AND academic_status = :academic_status";
+    $params[':academic_status'] = $academicStatus;
+  }
+
+C5. Add filter dropdown to the form (same pattern as dashboard step B6).
+
+C6. Add table column header + cell (same pattern as dashboard steps B7, B9).
+
+C7. Add to CSV export — in the fputcsv header row, add 'Academic Status';
+    in the data loop, add: $r['academic_status'] ?? ''
+
+
+================================================================
+BADGE COLOR CLASSES (add to theme.css if missing)
+================================================================
+
+.badge.ok      { background: var(--ok-soft, #d8f3dc); color: #1b5e20; }
+.badge.warn    { background: #fff4d6;                  color: #7a5400; }
+.badge.danger  { background: #fde4e4;                  color: #7a1f1f; }

@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stockroom — Inventory System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS — Flux-style zinc neutral ============ */
+:root{
+  --bg:#09090B;            /* zinc-950 */
+  --bg-soft:#0C0C0E;
+  --panel:#0E0E11;
+  --card:#161618;
+  --card-2:#1A1A1D;
+  --card-hover:#1F1F23;
+  --border:#27272A;        /* zinc-800 */
+  --border-soft:rgba(255,255,255,.06);
+  --ring:rgba(255,255,255,.10);
+  --text:#FAFAFA;          /* zinc-50 */
+  --muted:#A1A1AA;         /* zinc-400 */
+  --faint:#71717A;         /* zinc-500 */
+  --dim:#52525B;           /* zinc-600 */
+  --accent:#3B82F6;        /* blue-500, used sparingly */
+  --accent-soft:rgba(59,130,246,.13);
+  --accent-bd:rgba(59,130,246,.28);
+  --accent-light:#60A5FA;
+  --rose:#F472B6;
+  --green:#4ADE80; --green-bg:rgba(74,222,128,.11); --green-bd:rgba(74,222,128,.24);
+  --amber:#FBBF24; --amber-bg:rgba(251,191,36,.11); --amber-bd:rgba(251,191,36,.24);
+  --red:#F87171;   --red-bg:rgba(248,113,113,.11);  --red-bd:rgba(248,113,113,.24);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5);
+  --shadow:0 10px 30px -12px rgba(0,0,0,.65);
+  --shadow-lg:0 24px 60px -22px rgba(0,0,0,.8);
+  --r:8px; --r-lg:12px;
+  --sans:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--sans);background:var(--bg);color:var(--text);
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  letter-spacing:-.01em;overflow:hidden;
+}
+::selection{background:rgba(255,255,255,.16)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:9px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18);background-clip:content-box}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit}
+a{color:inherit;text-decoration:none}
+
+.screen{display:none;position:relative;z-index:2}
+.screen.active{display:block}
+.eyebrow{font-size:13px;font-weight:600;color:var(--accent-light);margin-bottom:5px;letter-spacing:0}
+
+/* ============ LOGIN ============ */
+#login.active{display:flex;align-items:center;justify-content:center;height:100vh;padding:24px;
+  background:radial-gradient(120% 80% at 50% -10%,#161618 0%,var(--bg) 55%)}
+.login-card{
+  width:100%;max-width:404px;background:var(--card);
+  border:1px solid var(--border);border-radius:14px;
+  padding:38px 36px;box-shadow:var(--shadow-lg);position:relative;
+  animation:rise .55s cubic-bezier(.16,1,.3,1) both;
+}
+.brand-lock{display:flex;flex-direction:column;align-items:center;gap:15px;margin-bottom:28px}
+.logo-mark{width:46px;height:46px;border-radius:11px;display:grid;place-items:center;
+  background:#FAFAFA;box-shadow:0 1px 0 rgba(255,255,255,.4) inset,var(--shadow-sm)}
+.logo-mark svg{width:24px;height:24px}
+.brand-lock h1{font-size:20px;font-weight:700;letter-spacing:-.4px}
+.brand-lock p{color:var(--muted);font-size:13.5px}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--text);margin-bottom:7px}
+.input-wrap{position:relative;display:flex;align-items:center}
+.input-wrap svg.lead{position:absolute;left:12px;width:16px;height:16px;color:var(--faint);pointer-events:none}
+.input{
+  width:100%;background:var(--bg-soft);border:1px solid var(--border);
+  border-radius:var(--r);color:var(--text);font-size:14px;padding:10px 12px;transition:.15s;
+}
+.input.has-icon{padding-left:38px}
+.input::placeholder{color:var(--faint)}
+.input:focus{outline:none;border-color:var(--dim);box-shadow:0 0 0 3px var(--ring)}
+.pw-toggle{position:absolute;right:10px;color:var(--faint);display:grid;place-items:center;padding:4px;border-radius:6px;transition:.15s}
+.pw-toggle:hover{color:var(--muted);background:rgba(255,255,255,.05)}
+.pw-toggle svg{width:16px;height:16px}
+.login-row{display:flex;align-items:center;justify-content:space-between;margin:3px 0 20px}
+.check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--muted)}
+.check input{display:none}
+.check .box{width:16px;height:16px;border-radius:5px;border:1.5px solid var(--dim);display:grid;place-items:center;transition:.15s;background:var(--bg-soft)}
+.check .box svg{width:10px;height:10px;color:#09090B;opacity:0;transform:scale(.5);transition:.15s}
+.check input:checked + .box{background:#FAFAFA;border-color:#FAFAFA}
+.check input:checked + .box svg{opacity:1;transform:scale(1)}
+.link{font-size:13px;color:var(--accent-light);font-weight:500;transition:.15s}
+.link:hover{color:#93C5FD}
+
+/* WHITE primary button — Flux signature */
+.btn-primary{
+  width:100%;background:#FAFAFA;color:#09090B;font-weight:600;font-size:14px;padding:11px;
+  border-radius:var(--r);transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 1px 0 rgba(255,255,255,.5) inset,var(--shadow-sm);
+}
+.btn-primary svg{width:16px;height:16px}
+.btn-primary:hover{background:#E4E4E7;transform:translateY(-1px)}
+.btn-primary:active{transform:translateY(0)}
+.login-foot{text-align:center;margin-top:20px;font-size:13px;color:var(--faint)}
+.login-foot a{color:var(--accent-light);font-weight:500}
+
+/* ============ SHELL ============ */
+#shell{display:none;position:relative;z-index:2;height:100vh}
+#shell.active{display:grid;grid-template-columns:256px 1fr}
+
+/* Sidebar */
+.sidebar{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;overflow-y:auto}
+.side-brand{display:flex;align-items:center;gap:11px;padding:6px 8px 16px}
+.side-brand .logo-mark{width:34px;height:34px;border-radius:9px}
+.side-brand .logo-mark svg{width:19px;height:19px}
+.side-brand .txt b{font-size:15px;font-weight:700;letter-spacing:-.3px;display:block}
+.side-brand .txt small{color:var(--faint);font-size:11px;letter-spacing:.3px;font-weight:500}
+.nav-label{font-size:11px;font-weight:600;letter-spacing:.4px;color:var(--faint);padding:14px 10px 6px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:7px;color:var(--muted);
+  font-weight:500;font-size:13.5px;position:relative;transition:.13s;margin-bottom:1px}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;transition:.13s;color:var(--faint)}
+.nav-item .badge{margin-left:auto;font-size:11px;font-weight:600;padding:1px 7px;border-radius:20px;background:rgba(255,255,255,.07);color:var(--muted)}
+.nav-item:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.nav-item:hover svg{color:var(--muted)}
+.nav-item.active{background:rgba(255,255,255,.07);color:var(--text)}
+.nav-item.active svg{color:var(--text)}
+.side-foot{margin-top:auto;padding-top:14px}
+.storage-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px}
+.storage-card .sc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.storage-card .sc-top b{font-size:12.5px;font-weight:600}
+.storage-card .sc-top svg{width:15px;height:15px;color:var(--faint)}
+.bar{height:6px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px;background:#D4D4D8}
+.storage-card small{display:block;color:var(--faint);font-size:11px;margin-top:8px}
+
+/* Main */
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{height:58px;flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;
+  padding:0 22px;background:rgba(9,9,11,.7);backdrop-filter:blur(10px)}
+.search-box{position:relative;flex:1;max-width:420px;display:flex;align-items:center}
+.search-box svg{position:absolute;left:12px;width:15px;height:15px;color:var(--faint)}
+.search-box input{width:100%;background:var(--bg-soft);border:1px solid var(--border);border-radius:7px;
+  padding:8px 12px 8px 36px;font-size:13px;color:var(--text);transition:.15s}
+.search-box input::placeholder{color:var(--faint)}
+.search-box input:focus{outline:none;border-color:var(--dim);box-shadow:0 0 0 3px var(--ring)}
+.search-box .kbd{position:absolute;right:9px;font-size:10.5px;color:var(--faint);background:rgba(255,255,255,.05);
+  border:1px solid var(--border);border-radius:5px;padding:2px 6px;font-family:var(--mono)}
+.top-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.role-switch{display:flex;background:var(--bg-soft);border:1px solid var(--border);border-radius:7px;padding:3px;gap:2px}
+.role-switch button{font-size:12px;font-weight:500;padding:5px 11px;border-radius:5px;color:var(--muted);transition:.13s}
+.role-switch button.on{background:rgba(255,255,255,.1);color:var(--text)}
+.icon-btn{width:36px;height:36px;border-radius:7px;display:grid;place-items:center;color:var(--muted);
+  border:1px solid var(--border);background:var(--bg-soft);position:relative;transition:.13s}
+.icon-btn:hover{color:var(--text);border-color:var(--dim);background:var(--card-hover)}
+.icon-btn svg{width:17px;height:17px}
+.icon-btn .dot{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
+.avatar{width:36px;height:36px;border-radius:8px;background:linear-gradient(160deg,#3F3F46,#27272A);
+  display:grid;place-items:center;font-weight:600;font-size:12px;color:#fff;cursor:pointer;
+  border:1px solid var(--border);transition:.13s}
+.avatar:hover{transform:translateY(-1px)}
+.user-chip{display:flex;align-items:center;gap:9px;padding:4px 8px 4px 4px;border-radius:9px;border:1px solid var(--border);
+  background:var(--bg-soft);transition:.13s;cursor:pointer}
+.user-chip:hover{border-color:var(--dim);background:var(--card-hover)}
+.user-chip .meta{text-align:left;line-height:1.2}
+.user-chip .meta b{font-size:12.5px;font-weight:600;display:block}
+.user-chip .meta small{font-size:11px;color:var(--faint)}
+.user-chip > svg{width:15px;height:15px;color:var(--faint)}
+
+.content{flex:1;overflow-y:auto;padding:26px 30px 60px}
+.view{display:none;animation:fade .3s ease both}
+.view.active{display:block}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px;flex-wrap:wrap}
+.page-head h2{font-size:23px;font-weight:700;letter-spacing:-.6px}
+.page-head p{color:var(--muted);font-size:13.5px;margin-top:3px}
+.head-actions{display:flex;gap:9px;align-items:center}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;font-weight:500;font-size:13px;padding:8px 14px;border-radius:7px;transition:.14s;white-space:nowrap}
+.btn svg{width:15px;height:15px}
+.btn-teal{background:#FAFAFA;color:#09090B;font-weight:600;box-shadow:0 1px 0 rgba(255,255,255,.5) inset,var(--shadow-sm)}
+.btn-teal:hover{background:#E4E4E7;transform:translateY(-1px)}
+.btn-ghost{background:var(--bg-soft);border:1px solid var(--border);color:var(--text)}
+.btn-ghost:hover{background:var(--card-hover);border-color:var(--dim)}
+.btn-soft{background:var(--accent-soft);color:var(--accent-light);border:1px solid var(--accent-bd)}
+.btn-soft:hover{background:rgba(59,130,246,.2)}
+.btn-sm{padding:6px 11px;font-size:12px}
+.btn-icon{width:31px;height:31px;padding:0;justify-content:center;border-radius:7px}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)}
+.btn-danger:hover{background:rgba(248,113,113,.2)}
+
+/* KPI cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;transition:.18s}
+.kpi:hover{border-color:var(--dim);background:var(--card-2)}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.kpi-ico{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;
+  background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border)}
+.kpi-ico svg{width:19px;height:19px}
+.trend{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px}
+.trend svg{width:12px;height:12px}
+.trend.up{background:var(--green-bg);color:var(--green)}
+.trend.down{background:var(--red-bg);color:var(--red)}
+.kpi-val{font-size:27px;font-weight:700;letter-spacing:-1px;font-feature-settings:"tnum"}
+.kpi-label{color:var(--muted);font-size:13px;font-weight:400;margin-top:2px}
+
+/* Panels */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border)}
+.panel-head h3{font-size:14.5px;font-weight:600}
+.panel-head .sub{font-size:12px;color:var(--faint);margin-top:1px}
+.grid-2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px}
+
+/* Tables */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--faint);
+  padding:10px 18px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.015)}
+.tbl td{padding:12px 18px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tbody tr{transition:.12s}
+.tbl tbody tr:hover{background:rgba(255,255,255,.025)}
+.mono{font-family:var(--mono);font-size:12.5px}
+.cell-strong{font-weight:600}
+.muted{color:var(--muted)}.faint{color:var(--faint)}
+.code-cell{display:flex;align-items:center;gap:9px}
+.qr-ico{width:29px;height:29px;border-radius:7px;background:var(--bg-soft);border:1px solid var(--border);
+  display:grid;place-items:center;color:var(--muted);flex-shrink:0}
+.qr-ico svg{width:15px;height:15px}
+.avatar-sm{width:29px;height:29px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0;border:1px solid var(--border)}
+
+/* Pills — flat, no glow */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:6px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%}
+.pill.green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)}.pill.green::before{background:var(--green)}
+.pill.amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}.pill.amber::before{background:var(--amber)}
+.pill.red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)}.pill.red::before{background:var(--red)}
+.pill.blue{background:var(--accent-soft);color:var(--accent-light);border:1px solid var(--accent-bd)}.pill.blue::before{background:var(--accent-light)}
+.pill.zinc{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border)}.pill.zinc::before{background:var(--faint)}
+.tag-in{color:var(--green);font-weight:600}
+.tag-out{color:var(--red);font-weight:600}
+
+/* Filter bar + chips */
+.filterbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:16px}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500;padding:6px 11px;border-radius:7px;
+  background:var(--bg-soft);border:1px solid var(--border);color:var(--muted);transition:.13s}
+.chip svg{width:13px;height:13px}
+.chip:hover{border-color:var(--dim);color:var(--text)}
+.chip.active{background:rgba(255,255,255,.08);border-color:var(--dim);color:var(--text)}
+.chip .x{margin-left:1px;opacity:.6}.chip .x:hover{opacity:1}
+.search-inline{position:relative;display:flex;align-items:center;min-width:230px}
+.search-inline svg{position:absolute;left:11px;width:14px;height:14px;color:var(--faint)}
+.search-inline input{width:100%;background:var(--bg-soft);border:1px solid var(--border);border-radius:7px;
+  padding:7px 12px 7px 33px;font-size:13px;color:var(--text);transition:.15s}
+.search-inline input:focus{outline:none;border-color:var(--dim);box-shadow:0 0 0 3px var(--ring)}
+
+/* Low stock alerts */
+.alert-item{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);transition:.12s}
+.alert-item:last-child{border-bottom:none}
+.alert-item:hover{background:rgba(255,255,255,.02)}
+.alert-ico{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
+.alert-ico.red{background:var(--red-bg);color:var(--red)}
+.alert-ico.amber{background:var(--amber-bg);color:var(--amber)}
+.alert-ico svg{width:17px;height:17px}
+.alert-body{flex:1;min-width:0}
+.alert-body b{font-size:13px;font-weight:600;display:block}
+.alert-body small{font-size:12px;color:var(--faint)}
+.alert-qty{text-align:right}
+.alert-qty b{font-size:15px;font-weight:700}
+.alert-qty small{font-size:11px;color:var(--faint);display:block}
+
+/* Forms */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid .span-2{grid-column:1/-1}
+.frm-label{display:block;font-size:13px;font-weight:500;color:var(--text);margin-bottom:7px}
+.frm-label .req{color:var(--accent-light)}
+.select-wrap{position:relative}
+.select-wrap svg{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--faint);pointer-events:none}
+select.input{appearance:none;cursor:pointer;padding-right:36px}
+.hint{font-size:11.5px;color:var(--faint);margin-top:6px}
+.form-foot{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.avail{display:flex;align-items:center;gap:11px;padding:13px 15px;border-radius:10px;background:var(--green-bg);border:1px solid var(--green-bd)}
+.avail.warn{background:var(--amber-bg);border-color:var(--amber-bd)}
+.avail .ai{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:rgba(74,222,128,.16);color:var(--green)}
+.avail.warn .ai{background:rgba(251,191,36,.16);color:var(--amber)}
+.avail .ai svg{width:18px;height:18px}
+.avail b{font-size:13.5px;display:block}
+.avail small{font-size:12px;color:var(--muted)}
+.avail .big{margin-left:auto;font-size:21px;font-weight:700;color:var(--green)}
+.avail.warn .big{color:var(--amber)}
+.scan-btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:12px;border-radius:9px;
+  border:1px dashed var(--dim);background:rgba(255,255,255,.02);color:var(--text);font-weight:500;font-size:13.5px;transition:.14s}
+.scan-btn:hover{background:rgba(255,255,255,.05);border-color:var(--muted)}
+.scan-btn svg{width:18px;height:18px}
+
+/* Combobox */
+.combo{position:relative}
+.combo-list{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--card-2);border:1px solid var(--border);
+  border-radius:10px;box-shadow:var(--shadow-lg);padding:6px;z-index:30;max-height:230px;overflow-y:auto;display:none}
+.combo-list.open{display:block;animation:pop .14s ease both}
+.combo-opt{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:7px;cursor:pointer;transition:.11s}
+.combo-opt:hover{background:rgba(255,255,255,.05)}
+.combo-opt .qr-ico{width:27px;height:27px}
+.combo-opt b{font-size:13px}
+.combo-opt small{font-size:11.5px;color:var(--faint)}
+.combo-opt .stk{margin-left:auto;font-size:12px;font-weight:500;color:var(--muted)}
+
+/* Suppliers grid */
+.sup-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.sup-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;transition:.18s}
+.sup-card:hover{border-color:var(--dim);background:var(--card-2)}
+.sup-top{display:flex;align-items:center;gap:12px;margin-bottom:15px}
+.sup-logo{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;border:1px solid var(--border)}
+.sup-top b{font-size:14.5px;font-weight:600;display:block}
+.sup-top small{font-size:12px;color:var(--faint)}
+.sup-meta{display:flex;gap:18px;padding-top:13px;border-top:1px solid var(--border)}
+.sup-meta div small{font-size:11px;color:var(--faint);display:block}
+.sup-meta div b{font-size:15px;font-weight:600}
+
+/* Reports */
+.report-tabs{display:flex;gap:3px;background:var(--bg-soft);border:1px solid var(--border);border-radius:9px;padding:3px}
+.report-tabs button{font-size:13px;font-weight:500;padding:7px 15px;border-radius:6px;color:var(--muted);transition:.13s}
+.report-tabs button.on{background:rgba(255,255,255,.1);color:var(--text)}
+.date-pick{display:flex;align-items:center;gap:8px;background:var(--bg-soft);border:1px solid var(--border);
+  border-radius:7px;padding:7px 12px;font-size:13px;font-weight:500;color:var(--text)}
+.date-pick svg{width:15px;height:15px;color:var(--faint)}
+.date-pick .sep{color:var(--faint)}
+.chart-card{padding:18px}
+.chart-legend{display:flex;gap:16px;margin-bottom:6px}
+.lg{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);font-weight:500}
+.lg i{width:14px;height:3px;border-radius:3px;display:inline-block}
+.lg i.dash{background:repeating-linear-gradient(90deg,var(--dim) 0 4px,transparent 4px 7px)}
+.chart-inset{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:12px 8px;margin-top:6px}
+
+/* Dropdowns */
+.dropdown{position:absolute;top:50px;right:0;width:330px;background:var(--card-2);border:1px solid var(--border);
+  border-radius:12px;box-shadow:var(--shadow-lg);z-index:60;overflow:hidden;display:none;animation:pop .14s ease both}
+.dropdown.open{display:block}
+.dd-head{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid var(--border)}
+.dd-head b{font-size:14px;font-weight:600}
+.dd-item{display:flex;gap:11px;padding:12px 15px;border-bottom:1px solid var(--border);transition:.11s;cursor:pointer}
+.dd-item:last-child{border-bottom:none}
+.dd-item:hover{background:rgba(255,255,255,.03)}
+.dd-item .di-ico{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
+.dd-item .di-ico svg{width:15px;height:15px}
+.dd-item b{font-size:13px;font-weight:600}
+.dd-item small{font-size:11.5px;color:var(--faint);display:block;margin-top:2px}
+.notif-pos{position:relative}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:24px}
+.modal-bg.open{display:flex;animation:fade .18s ease both}
+.modal{width:100%;max-width:500px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-lg);max-height:90vh;overflow-y:auto;animation:rise .28s cubic-bezier(.16,1,.3,1) both}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 0}
+.modal-head h3{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.modal-head p{color:var(--muted);font-size:13px;margin-top:3px}
+.modal-body{padding:20px 22px}
+.modal-x{width:31px;height:31px;border-radius:7px;display:grid;place-items:center;color:var(--faint);transition:.13s}
+.modal-x:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.modal-x svg{width:17px;height:17px}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;gap:10px}
+.toast{display:flex;align-items:center;gap:12px;background:var(--card-2);border:1px solid var(--border);
+  border-radius:10px;padding:12px 17px 12px 13px;box-shadow:var(--shadow-lg);min-width:280px;animation:slideIn .3s cubic-bezier(.16,1,.3,1) both}
+.toast .ti{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:var(--green-bg);color:var(--green);flex-shrink:0}
+.toast .ti svg{width:17px;height:17px}
+.toast b{font-size:13px;font-weight:600;display:block}
+.toast small{font-size:12px;color:var(--faint)}
+
+.role-hide{display:none !important}
+
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+@media(max-width:1100px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .grid-2{grid-template-columns:1fr}
+  .sup-grid{grid-template-columns:repeat(2,1fr)}
+  #shell.active{grid-template-columns:1fr}
+  .sidebar{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="login" class="screen active">
+  <div class="login-card">
+    <div class="brand-lock">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#09090B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      </div>
+      <h1>Stockroom</h1>
+      <p>Sign in to your inventory workspace</p>
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <div class="input-wrap">
+        <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        <input class="input has-icon" type="email" value="alex.warren@stockroom.io">
+      </div>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <div class="input-wrap">
+        <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input class="input has-icon" id="pwField" type="password" value="••••••••••">
+        <button class="pw-toggle" onclick="togglePw()" id="pwBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="login-row">
+      <label class="check">
+        <input type="checkbox" checked>
+        <span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        Remember me
+      </label>
+      <a class="link" href="#">Forgot password?</a>
+    </div>
+    <button class="btn-primary" onclick="doLogin()">
+      Sign in
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </button>
+    <div class="login-foot">Don't have an account? <a href="#">Contact your admin</a></div>
+  </div>
+</section>
+
+<!-- ============ SHELL ============ -->
+<div id="shell">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#09090B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      </div>
+      <div class="txt"><b>Stockroom</b><small>Warehouse 04</small></div>
+    </div>
+
+    <div class="nav-label">Main</div>
+    <a class="nav-item active" data-view="dashboard" onclick="go('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" data-view="inventory" onclick="go('inventory')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      Inventory
+    </a>
+    <a class="nav-item" data-view="stockin" onclick="go('stockin')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/></svg>
+      Stock In
+    </a>
+    <a class="nav-item" data-view="stockout" onclick="go('stockout')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/></svg>
+      Stock Out
+    </a>
+
+    <div class="nav-label">Manage</div>
+    <a class="nav-item" data-view="suppliers" onclick="go('suppliers')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+      Suppliers
+    </a>
+    <a class="nav-item" data-view="reports" onclick="go('reports')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+      Reports
+    </a>
+    <a class="nav-item admin-only" data-view="users" onclick="go('users')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Users
+    </a>
+
+    <div class="side-foot">
+      <div class="storage-card">
+        <div class="sc-top">
+          <b>Storage</b>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+        </div>
+        <div class="bar"><i style="width:68%"></i></div>
+        <small>2,847 of 4,200 SKU slots used</small>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input placeholder="Search items, suppliers, references…">
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="top-actions">
+        <div class="role-switch" title="Demo: switch role to see role-based UI">
+          <button class="on" id="roleAdmin" onclick="setRole('admin')">Admin</button>
+          <button id="roleStaff" onclick="setRole('staff')">Staff</button>
+        </div>
+        <div class="notif-pos">
+          <button class="icon-btn" onclick="toggleNotif(event)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+            <span class="dot"></span>
+          </button>
+          <div class="dropdown" id="notifDD">
+            <div class="dd-head"><b>Notifications</b><a class="link" href="#">Mark all read</a></div>
+            <div class="dd-item">
+              <div class="di-ico" style="background:var(--red-bg);color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div>
+              <div><b>Critical low stock</b><small>Thermal Paste TP-X9 dropped below reorder level · 4m ago</small></div>
+            </div>
+            <div class="dd-item">
+              <div class="di-ico" style="background:var(--green-bg);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/></svg></div>
+              <div><b>Stock-in received</b><small>PO-2284 from Vertex Components · 1h ago</small></div>
+            </div>
+            <div class="dd-item">
+              <div class="di-ico" style="background:var(--accent-soft);color:var(--accent-light)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+              <div><b>Approval granted</b><small>STA-0091 approved by R. Mendez · 3h ago</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="notif-pos">
+          <button class="user-chip" onclick="toggleUser(event)">
+            <span class="avatar" style="width:29px;height:29px;border-radius:7px;font-size:11px">AW</span>
+            <span class="meta"><b id="userName">Alex Warren</b><small id="userRole">Administrator</small></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="dropdown" id="userDD" style="width:196px">
+            <div class="dd-item"><div class="di-ico" style="background:rgba(255,255,255,.06);color:var(--text)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div><b>My profile</b></div></div>
+            <div class="dd-item"><div class="di-ico" style="background:rgba(255,255,255,.06);color:var(--text)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></div><div><b>Settings</b></div></div>
+            <div class="dd-item" onclick="logout()"><div class="di-ico" style="background:var(--red-bg);color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg></div><div><b>Sign out</b></div></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ===== DASHBOARD ===== -->
+      <section class="view active" id="view-dashboard">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Overview</div>
+            <h2>Dashboard</h2>
+            <p>Welcome back, Alex. Here's your warehouse at a glance.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>View reports</button>
+            <button class="btn btn-teal admin-only" onclick="openModal('stockinModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>New stock entry</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi-top">
+              <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></div>
+              <span class="trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>4.2%</span>
+            </div>
+            <div class="kpi-val">2,847</div>
+            <div class="kpi-label">Total items in stock</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top">
+              <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+              <span class="trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>8.1%</span>
+            </div>
+            <div class="kpi-val">$486.2K</div>
+            <div class="kpi-label">Total stock value</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top">
+              <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div>
+              <span class="trend down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg>3 new</span>
+            </div>
+            <div class="kpi-val">18</div>
+            <div class="kpi-label">Low stock alerts</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top">
+              <div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+              <span class="trend up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>12</span>
+            </div>
+            <div class="kpi-val">7</div>
+            <div class="kpi-label">Pending approvals</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head">
+              <div><h3>Recent transactions</h3><div class="sub">Latest stock movements across the warehouse</div></div>
+              <button class="btn btn-soft btn-sm" onclick="go('inventory')">View all</button>
+            </div>
+            <table class="tbl">
+              <thead><tr><th>Reference</th><th>Item</th><th>Type</th><th>Qty</th><th>Status</th></tr></thead>
+              <tbody id="txnRows"></tbody>
+            </table>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div><h3>Low stock alerts</h3><div class="sub">Items at or below reorder level</div></div>
+              <span class="pill red">18 items</span>
+            </div>
+            <div id="alertRows"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== INVENTORY ===== -->
+      <section class="view" id="view-inventory">
+        <div class="page-head">
+          <div><div class="eyebrow">Catalog</div><h2>Inventory</h2><p>Manage all stock items, levels, and categories.</p></div>
+          <div class="head-actions">
+            <button class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/></svg>Export</button>
+            <button class="btn btn-teal admin-only"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Add item</button>
+          </div>
+        </div>
+
+        <div class="filterbar">
+          <div class="search-inline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input placeholder="Search by name or code…">
+          </div>
+          <span class="chip active">All categories <svg class="x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+          <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>In stock</span>
+          <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/></svg>Low stock</span>
+          <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>Filters</span>
+        </div>
+
+        <div class="panel">
+          <table class="tbl">
+            <thead><tr><th>Item Code</th><th>Name</th><th>Category</th><th>Quantity</th><th>Reorder Lvl</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+            <tbody id="invRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== STOCK IN ===== -->
+      <section class="view" id="view-stockin">
+        <div class="page-head">
+          <div><div class="eyebrow">Receiving</div><h2>Stock In</h2><p>Record incoming inventory from suppliers and purchase orders.</p></div>
+        </div>
+        <div style="max-width:740px">
+          <div class="panel">
+            <div class="panel-head"><div><h3>New stock entry</h3><div class="sub">Receive items into the warehouse</div></div></div>
+            <div style="padding:22px">
+              <button class="scan-btn" style="margin-bottom:20px" onclick="toast('Scanner ready','Point camera at the item barcode')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8"/><path d="M11 8v8"/><path d="M15 8v8"/></svg>
+                Scan Barcode
+              </button>
+              <div class="form-grid">
+                <div class="span-2 combo">
+                  <label class="frm-label">Item <span class="req">*</span></label>
+                  <div class="input-wrap">
+                    <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    <input class="input has-icon" placeholder="Search for an item…" onfocus="document.getElementById('comboIn').classList.add('open')" value="SKU-4471 · Hex Bolt M8×40">
+                  </div>
+                  <div class="combo-list" id="comboIn">
+                    <div class="combo-opt" onclick="pickCombo('comboIn')"><span class="qr-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><div><b>Hex Bolt M8×40</b><small>SKU-4471 · Fasteners</small></div><span class="stk">412 in stock</span></div>
+                    <div class="combo-opt" onclick="pickCombo('comboIn')"><span class="qr-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><div><b>Thermal Paste TP-X9</b><small>SKU-9921 · Consumables</small></div><span class="stk">6 in stock</span></div>
+                    <div class="combo-opt" onclick="pickCombo('comboIn')"><span class="qr-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><div><b>Copper Wire 2.5mm</b><small>SKU-3310 · Electrical</small></div><span class="stk">88 in stock</span></div>
+                  </div>
+                </div>
+                <div>
+                  <label class="frm-label">Quantity <span class="req">*</span></label>
+                  <input class="input" type="number" value="250" placeholder="0">
+                </div>
+                <div>
+                  <label class="frm-label">Supplier <span class="req">*</span></label>
+                  <div class="select-wrap">
+                    <select class="input"><option>Vertex Components Ltd.</option><option>Northgate Industrial</option><option>Apex Hardware Supply</option><option>Meridian Materials</option></select>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </div>
+                </div>
+                <div>
+                  <label class="frm-label">Date received <span class="req">*</span></label>
+                  <div class="input-wrap">
+                    <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                    <input class="input has-icon" type="text" value="2026-06-01">
+                  </div>
+                </div>
+                <div>
+                  <label class="frm-label">Reference #</label>
+                  <input class="input mono" value="PO-2285" placeholder="PO / Invoice no.">
+                </div>
+                <div class="span-2">
+                  <label class="frm-label">Notes</label>
+                  <input class="input" placeholder="Optional note about this entry…">
+                </div>
+              </div>
+              <div class="form-foot">
+                <button class="btn btn-ghost" onclick="go('dashboard')">Cancel</button>
+                <button class="btn btn-teal" onclick="toast('Stock received','250 units of Hex Bolt M8×40 added')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Confirm stock in</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== STOCK OUT ===== -->
+      <section class="view" id="view-stockout">
+        <div class="page-head">
+          <div><div class="eyebrow">Dispatch</div><h2>Stock Out</h2><p>Issue inventory against requests and approvals.</p></div>
+        </div>
+        <div style="max-width:740px">
+          <div class="panel">
+            <div class="panel-head"><div><h3>Issue stock</h3><div class="sub">Dispatch items to a requesting department</div></div></div>
+            <div style="padding:22px">
+              <div class="avail" style="margin-bottom:20px">
+                <div class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+                <div><b>Stock available</b><small>Hex Bolt M8×40 · SKU-4471</small></div>
+                <span class="big">412</span>
+              </div>
+              <div class="form-grid">
+                <div class="span-2">
+                  <label class="frm-label">Item <span class="req">*</span></label>
+                  <div class="input-wrap">
+                    <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    <input class="input has-icon" value="SKU-4471 · Hex Bolt M8×40">
+                  </div>
+                </div>
+                <div>
+                  <label class="frm-label">Quantity <span class="req">*</span></label>
+                  <input class="input" type="number" value="40" placeholder="0">
+                </div>
+                <div>
+                  <label class="frm-label">STA Reference No. <span class="req">*</span></label>
+                  <input class="input mono" value="STA-0092" placeholder="STA-0000">
+                </div>
+                <div>
+                  <label class="frm-label">Requester name <span class="req">*</span></label>
+                  <input class="input" value="Daniel Okafor" placeholder="Full name">
+                </div>
+                <div>
+                  <label class="frm-label">Department <span class="req">*</span></label>
+                  <div class="select-wrap">
+                    <select class="input"><option>Maintenance</option><option>Production Line A</option><option>Production Line B</option><option>Facilities</option><option>R&amp;D Lab</option></select>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </div>
+                </div>
+                <div class="span-2">
+                  <label class="frm-label">Superior approval <span class="req">*</span></label>
+                  <div class="select-wrap">
+                    <select class="input"><option>R. Mendez — Approved ✓</option><option>Pending approval</option><option>S. Patel — Shift Supervisor</option></select>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </div>
+                  <div class="hint">Stock-out requires an authorized superior's approval before dispatch.</div>
+                </div>
+              </div>
+              <div class="form-foot">
+                <button class="btn btn-ghost" onclick="go('dashboard')">Cancel</button>
+                <button class="btn btn-teal" onclick="toast('Stock issued','40 units dispatched under STA-0092')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/></svg>Issue stock</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+ 
+      <!-- ===== SUPPLIERS ===== -->
+      <section class="view" id="view-suppliers">
+        <div class="page-head">
+          <div><div class="eyebrow">Procurement</div><h2>Suppliers</h2><p>Your vendor network and procurement partners.</p></div>
+          <div class="head-actions">
+            <button class="btn btn-teal admin-only"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Add supplier</button>
+          </div>
+        </div>
+        <div class="sup-grid" id="supGrid"></div>
+      </section>
+ 
+      <!-- ===== REPORTS ===== -->
+      <section class="view" id="view-reports">
+        <div class="page-head">
+          <div><div class="eyebrow">Analytics</div><h2>Reports</h2><p>Analyze stock movement, valuation, and trends.</p></div>
+          <div class="head-actions">
+            <button class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Export PDF</button>
+            <button class="btn btn-soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 14 2 2 4-4"/></svg>Export Excel</button>
+          </div>
+        </div>
+ 
+        <div class="filterbar" style="justify-content:space-between">
+          <div class="report-tabs">
+            <button class="on" onclick="reportTab(this)">Stock Movement</button>
+            <button onclick="reportTab(this)">Inventory Summary</button>
+            <button onclick="reportTab(this)">Valuation</button>
+          </div>
+          <div class="date-pick">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+            May 1, 2026 <span class="sep">→</span> Jun 1, 2026
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+ 
+        <div class="grid-2">
+          <div class="panel chart-card">
+            <div class="panel-head" style="padding:0 0 14px;border:none">
+              <div><h3>Stock movement</h3><div class="sub">Stock in vs. stock out — last 30 days</div></div>
+              <div class="chart-legend">
+                <span class="lg"><i style="background:var(--rose)"></i>Stock In</span>
+                <span class="lg"><i class="dash"></i>Stock Out</span>
+              </div>
+            </div>
+            <div class="chart-inset" id="chartHolder"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><h3>Top moved items</h3><div class="sub">By volume this period</div></div></div>
+            <div id="reportBars" style="padding:16px 18px"></div>
+          </div>
+        </div>
+ 
+        <div class="panel">
+          <div class="panel-head"><div><h3>Movement detail</h3><div class="sub">Transaction-level breakdown</div></div></div>
+          <table class="tbl">
+            <thead><tr><th>Date</th><th>Reference</th><th>Item</th><th>Type</th><th>Qty</th><th>Value</th></tr></thead>
+            <tbody id="reportRows"></tbody>
+          </table>
+        </div>
+      </section>
+ 
+      <!-- ===== USERS ===== -->
+      <section class="view" id="view-users">
+        <div class="page-head">
+          <div><div class="eyebrow">Access control</div><h2>Users &amp; Roles</h2><p>Manage team access and permission levels.</p></div>
+          <div class="head-actions">
+            <button class="btn btn-teal admin-only"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>Invite user</button>
+          </div>
+        </div>
+        <div class="panel">
+          <table class="tbl">
+            <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Last active</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+            <tbody id="userRows"></tbody>
+          </table>
+        </div>
+      </section>
+ 
+    </div>
+  </div>
+</div>
+ 
+<!-- ===== STOCK IN MODAL ===== -->
+<div class="modal-bg" id="stockinModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div><h3>Quick stock in</h3><p>Add inventory without leaving the dashboard</p></div>
+      <button class="modal-x" onclick="closeModal('stockinModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <button class="scan-btn" style="margin-bottom:18px" onclick="toast('Scanner ready','Point camera at the item barcode')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8"/><path d="M11 8v8"/><path d="M15 8v8"/></svg>
+        Scan Barcode
+      </button>
+      <div class="form-grid">
+        <div class="span-2">
+          <label class="frm-label">Item <span class="req">*</span></label>
+          <input class="input" placeholder="Search for an item…" value="SKU-9921 · Thermal Paste TP-X9">
+        </div>
+        <div><label class="frm-label">Quantity <span class="req">*</span></label><input class="input" type="number" value="120"></div>
+        <div><label class="frm-label">Reference #</label><input class="input mono" value="PO-2286"></div>
+        <div class="span-2">
+          <label class="frm-label">Supplier <span class="req">*</span></label>
+          <div class="select-wrap"><select class="input"><option>Meridian Materials</option><option>Vertex Components Ltd.</option></select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+        </div>
+      </div>
+      <div class="form-foot">
+        <button class="btn btn-ghost" onclick="closeModal('stockinModal')">Cancel</button>
+        <button class="btn btn-teal" onclick="closeModal('stockinModal');toast('Stock received','120 units of Thermal Paste TP-X9 added')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+ 
+<div class="toast-wrap" id="toastWrap"></div>
+ 
+<script>
+const colorPool=['#3F3F46','#1E40AF','#334155','#3730A3','#404040','#155E5E','#5B21B6','#475569'];
+function initials(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+ 
+const txns=[
+  ['PO-2284','Copper Wire 2.5mm','in',180,'green','Completed'],
+  ['STA-0091','Hex Bolt M8×40','out',60,'blue','Approved'],
+  ['PO-2283','Safety Goggles V2','in',300,'green','Completed'],
+  ['STA-0090','Thermal Paste TP-X9','out',12,'amber','Pending'],
+  ['PO-2282','Steel Brackets L','in',95,'green','Completed'],
+];
+const alerts=[
+  ['Thermal Paste TP-X9','SKU-9921 · Consumables',6,25,'red'],
+  ['LED Driver 24V','SKU-7740 · Electrical',14,30,'amber'],
+  ['Cutting Disc 125mm','SKU-5512 · Tools',9,40,'red'],
+  ['Nitrile Gloves M','SKU-6601 · Safety',38,80,'amber'],
+];
+const inv=[
+  ['SKU-4471','Hex Bolt M8×40','Fasteners',412,100,'green','In Stock'],
+  ['SKU-9921','Thermal Paste TP-X9','Consumables',6,25,'red','Critical'],
+  ['SKU-3310','Copper Wire 2.5mm','Electrical',88,60,'green','In Stock'],
+  ['SKU-7740','LED Driver 24V','Electrical',14,30,'amber','Low'],
+  ['SKU-5512','Cutting Disc 125mm','Tools',9,40,'red','Critical'],
+  ['SKU-2208','Safety Goggles V2','Safety',640,150,'green','In Stock'],
+  ['SKU-6601','Nitrile Gloves M','Safety',38,80,'amber','Low'],
+  ['SKU-1190','Steel Brackets L','Hardware',204,90,'green','In Stock'],
+];
+const suppliers=[
+  ['Vertex Components Ltd.','Fasteners & Hardware','148','$92.4K'],
+  ['Northgate Industrial','Electrical Supply','86','$64.1K'],
+  ['Apex Hardware Supply','Tools & Equipment','203','$118.7K'],
+  ['Meridian Materials','Consumables','61','$28.9K'],
+  ['Ironclad Safety Co.','PPE & Safety','94','$41.3K'],
+  ['Delta Fabrication','Metal & Sheet','37','$55.2K'],
+];
+const reportRows=[
+  ['Jun 01','PO-2285','Hex Bolt M8×40','in',250,'$1,125'],
+  ['May 31','STA-0089','Cutting Disc 125mm','out',15,'$348'],
+  ['May 30','PO-2284','Copper Wire 2.5mm','in',180,'$2,340'],
+  ['May 28','STA-0086','Safety Goggles V2','out',45,'$540'],
+  ['May 27','PO-2281','LED Driver 24V','in',60,'$1,860'],
+];
+const users=[
+  ['Alex Warren','alex.warren@stockroom.io','Administrator','2 min ago','green','Active'],
+  ['Rosa Mendez','r.mendez@stockroom.io','Manager','1 hour ago','green','Active'],
+  ['Daniel Okafor','d.okafor@stockroom.io','Staff','Yesterday','green','Active'],
+  ['Sara Patel','s.patel@stockroom.io','Staff','3 days ago','amber','Away'],
+  ['James Lin','j.lin@stockroom.io','Viewer','2 weeks ago','red','Inactive'],
+];
+const roleColors={'Administrator':'blue','Manager':'zinc','Staff':'zinc','Viewer':'zinc'};
+const topItems=[['Hex Bolt M8×40',250],['Copper Wire 2.5mm',180],['Safety Goggles V2',140],['LED Driver 24V',95],['Cutting Disc 125mm',62]];
+ 
+const qrSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3"/><path d="M21 14v7h-7"/></svg>';
+const editSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>';
+const viewSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const trashSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+ 
+document.getElementById('txnRows').innerHTML=txns.map(t=>`
+  <tr><td class="mono cell-strong">${t[0]}</td><td>${t[1]}</td>
+  <td><span class="tag-${t[2]}">${t[2]==='in'?'▲ In':'▼ Out'}</span></td>
+  <td class="cell-strong">${t[3]}</td><td><span class="pill ${t[4]}">${t[5]}</span></td></tr>`).join('');
+ 
+document.getElementById('alertRows').innerHTML=alerts.map(a=>`
+  <div class="alert-item">
+    <div class="alert-ico ${a[4]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div>
+    <div class="alert-body"><b>${a[0]}</b><small>${a[1]}</small></div>
+    <div class="alert-qty"><b style="color:var(--${a[4]})">${a[2]}</b><small>reorder ${a[3]}</small></div>
+  </div>`).join('');
+ 
+document.getElementById('invRows').innerHTML=inv.map(i=>`
+  <tr>
+    <td><div class="code-cell"><span class="qr-ico">${qrSvg}</span><span class="mono cell-strong">${i[0]}</span></div></td>
+    <td class="cell-strong">${i[1]}</td>
+    <td class="muted">${i[2]}</td>
+    <td class="cell-strong">${i[3]}</td>
+    <td class="faint">${i[4]}</td>
+    <td><span class="pill ${i[5]}">${i[6]}</span></td>
+    <td><div style="display:flex;gap:6px;justify-content:flex-end">
+      <button class="btn btn-icon btn-ghost" title="View">${viewSvg}</button>
+      <button class="btn btn-icon btn-ghost admin-only" title="Edit">${editSvg}</button>
+    </div></td>
+  </tr>`).join('');
+ 
+document.getElementById('supGrid').innerHTML=suppliers.map((s,idx)=>`
+  <div class="sup-card">
+    <div class="sup-top">
+      <div class="sup-logo" style="background:${colorPool[idx%colorPool.length]}">${initials(s[0])}</div>
+      <div><b>${s[0]}</b><small>${s[1]}</small></div>
+    </div>
+    <div class="sup-meta">
+      <div><small>Items supplied</small><b>${s[2]}</b></div>
+      <div><small>Total value</small><b>${s[3]}</b></div>
+    </div>
+  </div>`).join('');
+ 
+document.getElementById('reportRows').innerHTML=reportRows.map(r=>`
+  <tr><td class="muted">${r[0]}</td><td class="mono cell-strong">${r[1]}</td><td>${r[2]}</td>
+  <td><span class="tag-${r[3]}">${r[3]==='in'?'▲ In':'▼ Out'}</span></td>
+  <td class="cell-strong">${r[4]}</td><td class="cell-strong">${r[5]}</td></tr>`).join('');
+ 
+document.getElementById('userRows').innerHTML=users.map((u,idx)=>`
+  <tr>
+    <td><div class="code-cell"><span class="avatar-sm" style="background:${colorPool[idx%colorPool.length]}">${initials(u[0])}</span><span class="cell-strong">${u[0]}</span></div></td>
+    <td class="muted mono" style="font-size:12px">${u[1]}</td>
+    <td><span class="pill ${roleColors[u[2]]}">${u[2]}</span></td>
+    <td class="faint">${u[3]}</td>
+    <td><span class="pill ${u[4]}">${u[5]}</span></td>
+    <td><div style="display:flex;gap:6px;justify-content:flex-end">
+      <button class="btn btn-icon btn-ghost admin-only" title="Edit">${editSvg}</button>
+      <button class="btn btn-icon btn-danger admin-only" title="Remove">${trashSvg}</button>
+    </div></td>
+  </tr>`).join('');
+ 
+document.getElementById('reportBars').innerHTML=topItems.map((t,i)=>{
+  const pct=Math.round(t[1]/250*100);
+  const fill=i===0?'var(--accent)':'#D4D4D8';
+  return `<div style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span class="cell-strong">${t[0]}</span><span class="muted">${t[1]} units</span></div>
+    <div class="bar"><i style="width:${pct}%;background:${fill}"></i></div>
+  </div>`}).join('');
+ 
+/* CHART — Flux-style: solid rose line + dashed muted line on light inset */
+function buildChart(){
+  const inD=[120,90,160,140,180,130,200,170,220,190,250,210];
+  const outD=[80,70,110,95,120,100,140,130,150,120,160,145];
+  const W=560,H=230,pad=26,max=270;
+  const x=i=>pad+i*((W-pad*2)/(inD.length-1));
+  const y=v=>H-pad-(v/max)*(H-pad*1.7);
+  const path=d=>d.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  let grid='';
+  for(let g=0;g<=3;g++){const gy=pad+g*((H-pad*1.5)/3);grid+=`<line x1="${pad}" y1="${gy.toFixed(1)}" x2="${W-pad}" y2="${gy.toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`}
+  const len=1200;
+  document.getElementById('chartHolder').innerHTML=`
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
+    <defs><linearGradient id="gRose" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F472B6" stop-opacity=".16"/><stop offset="1" stop-color="#F472B6" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    <path d="${path(inD)} L${x(inD.length-1)} ${H-pad} L${x(0)} ${H-pad} Z" fill="url(#gRose)"/>
+    <path d="${path(outD)}" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5 5"/>
+    <path d="${path(inD)}" fill="none" stroke="#F472B6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${len}" stroke-dashoffset="${len}" style="animation:draw 1.3s ease forwards"/>
+    ${inD.map((v,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.5" fill="#161618" stroke="#F472B6" stroke-width="1.5"/>`).join('')}
+  </svg>`;
+}
+ 
+function doLogin(){document.getElementById('login').classList.remove('active');document.getElementById('shell').classList.add('active');buildChart()}
+function logout(){closeAllDD();document.getElementById('shell').classList.remove('active');document.getElementById('login').classList.add('active')}
+function go(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
+  document.querySelector('.content').scrollTop=0;
+  if(view==='reports')buildChart();
+}
+function togglePw(){const f=document.getElementById('pwField');if(f.type==='password'){f.type='text';f.value='Str0ngP@ss!'}else{f.type='password';f.value='••••••••••'}}
+function setRole(role){
+  const admin=role==='admin';
+  document.getElementById('roleAdmin').classList.toggle('on',admin);
+  document.getElementById('roleStaff').classList.toggle('on',!admin);
+  document.getElementById('userName').textContent=admin?'Alex Warren':'Daniel Okafor';
+  document.getElementById('userRole').textContent=admin?'Administrator':'Staff';
+  document.querySelector('.user-chip .avatar').textContent=admin?'AW':'DO';
+  document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('role-hide',!admin));
+  toast('Role switched',admin?'Now viewing as Administrator':'Now viewing as Staff (limited access)');
+}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function reportTab(btn){btn.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');buildChart()}
+function pickCombo(id){document.getElementById(id).classList.remove('open')}
+function closeAllDD(){document.querySelectorAll('.dropdown').forEach(d=>d.classList.remove('open'))}
+function toggleNotif(e){e.stopPropagation();const d=document.getElementById('notifDD');const o=d.classList.contains('open');closeAllDD();if(!o)d.classList.add('open')}
+function toggleUser(e){e.stopPropagation();const d=document.getElementById('userDD');const o=d.classList.contains('open');closeAllDD();if(!o)d.classList.add('open')}
+document.addEventListener('click',()=>{closeAllDD();document.querySelectorAll('.combo-list').forEach(c=>c.classList.remove('open'))});
+function toast(title,msg){
+  const w=document.getElementById('toastWrap');const el=document.createElement('div');el.className='toast';
+  el.innerHTML=`<div class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div><b>${title}</b><small>${msg}</small></div>`;
+  w.appendChild(el);setTimeout(()=>{el.style.transition='.3s';el.style.opacity='0';el.style.transform='translateX(28px)';setTimeout(()=>el.remove(),300)},3200);
+}
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',function(e){if(e.target.closest('.x'))return;if(!this.classList.contains('active'))this.classList.toggle('active')}));
+</script>
+</body>
+</html>
